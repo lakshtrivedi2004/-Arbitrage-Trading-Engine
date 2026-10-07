@@ -1,0 +1,14 @@
+{
+  "brokerage_per_order": 20.0,
+  "opt_stt_sell": 0.00125,
+  "opt_exchange_txn": 0.0005,
+  "opt_stamp_buy": 3e-05,
+  "fut_stt_sell": 0.0002,
+  "fut_exchange_txn": 1.9e-05,
+  "fut_stamp_buy": 2e-05,
+  "sebi_fee": 1e-06,
+  "gst_rate": 0.18,
+  "ipft": 5e-06,
+  "slippage_ticks_per_leg": 1.0,
+  "tick_size": 0.05
+}

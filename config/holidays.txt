@@ -1,0 +1,6 @@
+# NSE/BSE trading holidays, one per line as YYYY-MM-DD. The daemon skips these
+# days. Keep this current from the exchange's published list; a holiday that is
+# missing here only costs a session that sees no ticks and stops itself after
+# ten minutes.
+2026-10-02   # Mahatma Gandhi Jayanti
+2026-12-25   # Christmas

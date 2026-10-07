@@ -1,0 +1,23 @@
+{
+  "system_name": "NiftyOptionsArbitrage",
+  "version": "1.0.0",
+  "nim_endpoints": {
+    "embedding_url": "http://localhost:8000/v1",
+    "embedding_model": "nemotron-3-embed-1b",
+    "llm_url": "http://localhost:8000/v1",
+    "llm_model": "meta/muse-glimmer-30b"
+  },
+  "trading_parameters": {
+    "underlying": "NIFTY",
+    "lot_size": 25,
+    "max_lots_per_trade": 10,
+    "min_profit_threshold_inr": 100.0,
+    "risk_free_rate": 0.065
+  },
+  "risk_limits": {
+    "max_capital_per_trade_inr": 1000000.0,
+    "max_total_lots": 20,
+    "max_slippage_tolerance_inr": 500.0,
+    "kill_switch_active": false
+  }
+}

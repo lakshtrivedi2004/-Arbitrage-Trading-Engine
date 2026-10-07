@@ -1,0 +1,78 @@
+{
+  "strategies": [
+    {
+      "strategy_name": "Calendar Spread Arbitrage",
+      "type": "CALENDAR_SPREAD",
+      "description": "Relative-value arbitrage between NIFTY 50 weekly and monthly options.",
+      "entry_condition": "Weekly CE Bid - Monthly CE Ask > Net Execution Cost",
+      "exit_condition": "Square off at specific threshold or hold until expiry.",
+      "parameters": {
+        "lot_size": 65.0,
+        "max_lots_per_trade": 10.0,
+        "min_profit_threshold_inr": 200.0,
+        "min_net_roi_pct": 4.0,
+        "strike_distance": 50.0
+      },
+      "rules": {
+        "hedging_required": "true",
+        "require_delta_neutral": "true",
+        "allow_leg_execution": "false"
+      },
+      "cost_assumptions": {
+        "brokerage_per_order": 20.0,
+        "gst_rate": 0.18,
+        "nse_options_txn_charge": 0.0005,
+        "slippage_ticks": 1.0,
+        "stt_options_sell_rate": 0.00125
+      }
+    },
+    {
+      "strategy_name": "Box Spread Arbitrage",
+      "type": "BOX_SPREAD",
+      "description": "4-leg riskless box spread arbitrage exploiting Nifty options mispricings",
+      "entry_condition": "(Call_1 - Call_2) + (Put_2 - Put_1) < (K2 - K1) * exp(-r*T) - TransactionCosts",
+      "exit_condition": "Hold until expiration for riskless payoff (K2 - K1)",
+      "parameters": {
+        "lot_size": 65.0,
+        "max_lots_per_trade": 10.0,
+        "min_profit_threshold_inr": 200.0,
+        "min_net_roi_pct": 4.0,
+        "strike_distance": 50.0
+      },
+      "rules": {
+        "hedging_required": "true"
+      },
+      "cost_assumptions": {
+        "brokerage_per_order": 20.0,
+        "gst_rate": 0.18,
+        "nse_options_txn_charge": 0.0005,
+        "slippage_ticks": 1.0,
+        "stt_options_sell_rate": 0.00125
+      }
+    },
+    {
+      "strategy_name": "Put-Call Parity Reversal",
+      "type": "PUT_CALL_PARITY",
+      "description": "Exploit mispricings where synthetic futures deviate from real futures",
+      "entry_condition": "|C - P - S| > Minimum_Arbitrage_Profit",
+      "exit_condition": "Revert to fair value or hold to expiry",
+      "parameters": {
+        "lot_size": 65.0,
+        "max_lots_per_trade": 10.0,
+        "min_profit_threshold_inr": 200.0,
+        "min_net_roi_pct": 4.0,
+        "strike_distance": 50.0
+      },
+      "rules": {
+        "hedging_required": "true"
+      },
+      "cost_assumptions": {
+        "brokerage_per_order": 20.0,
+        "gst_rate": 0.18,
+        "nse_options_txn_charge": 0.0005,
+        "slippage_ticks": 1.0,
+        "stt_options_sell_rate": 0.00125
+      }
+    }
+  ]
+}

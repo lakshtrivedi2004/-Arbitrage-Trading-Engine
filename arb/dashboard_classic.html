@@ -1,0 +1,1106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arbitrage engine</title>
+<style>
+:root{
+  --bg:#ffffff; --box:#f8f9fa; --box-2:#eaecf0; --hl:#fdf2d5;
+  --br:#a2a9b1; --br-2:#c8ccd1; --br-3:#eaecf0;
+  --ink:#202122; --ink-2:#54595d; --ink-3:#72777d;
+  --link:#3366cc;
+  /* Validated on white: lightness band, chroma floor, CVD separation,
+     normal-vision separation and 3:1 contrast all pass. */
+  --up:#14866d; --down:#b32424; --mark:#a86e00; --alt:#3366cc;
+  --serif:"Linux Libertine","Georgia","Times New Roman",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",
+    Arial,"Liberation Sans",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:14px;line-height:1.6}
+.n{font-variant-numeric:tabular-nums}
+.wrap{max-width:1360px;margin:0 auto;padding:0 24px 60px}
+.up{color:var(--up)} .dn{color:var(--down)}
+a{color:var(--link);text-decoration:none} a:hover{text-decoration:underline}
+
+/* ── heading rhythm: serif, light, thin rule under ─────────── */
+h1{font-family:var(--serif);font-size:28px;font-weight:400;line-height:1.3;
+  margin:18px 0 0;padding-bottom:6px;border-bottom:1px solid var(--br)}
+h2{font-family:var(--serif);font-size:21px;font-weight:400;line-height:1.3;
+  margin:30px 0 0;padding-bottom:5px;border-bottom:1px solid var(--br)}
+h3{font-size:14px;font-weight:700;margin:18px 0 6px}
+p.note{color:var(--ink-2);margin:9px 0 14px;max-width:78ch}
+.hrow{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.hrow .aside{margin-left:auto;font-size:12.5px;color:var(--ink-3);
+  font-family:var(--sans)}
+.sec{margin-bottom:6px}
+
+/* ── status line under the title ───────────────────────────── */
+.status{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;
+  color:var(--ink-2);margin:8px 0 4px}
+.chipx{background:var(--box);border:1px solid var(--br-2);border-radius:2px;
+  padding:1px 7px;font-size:12px}
+.chipx.on{background:#eaf3ff;border-color:#a3c1e8;color:#2a4b8d}
+.chipx.off{background:#fee7e6;border-color:#e0a3a3;color:#8b2020}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--up);display:inline-block}
+.dot.off{background:var(--down)}
+
+/* ── infobox ───────────────────────────────────────────────── */
+.info{border:1px solid var(--br);background:var(--box);border-collapse:collapse;
+  font-size:13px;width:100%}
+.info caption{caption-side:top;font-weight:700;padding:6px 8px;
+  background:var(--box-2);border-bottom:1px solid var(--br);text-align:center}
+.info th{text-align:left;font-weight:400;color:var(--ink-2);padding:4px 8px;
+  border-bottom:1px solid var(--br-3);white-space:nowrap;width:52%}
+.info td{text-align:right;padding:4px 8px;border-bottom:1px solid var(--br-3);
+  font-weight:700}
+.info tr:last-child th,.info tr:last-child td{border-bottom:none}
+
+.grid2{display:grid;gap:22px;grid-template-columns:1fr}
+@media(min-width:980px){.grid2{grid-template-columns:1fr 300px}
+  .grid2.even{grid-template-columns:1fr 1fr}
+  .grid2.wide{grid-template-columns:1.5fr 1fr}}
+
+/* ── the lead figure ───────────────────────────────────────── */
+.lead{border:1px solid var(--br);background:var(--box);padding:14px 16px;
+  margin:14px 0 0}
+.lead .k{font-size:12px;color:var(--ink-2)}
+.lead .v{font-size:34px;line-height:1.15;margin-top:2px;font-weight:400;
+  font-family:var(--serif)}
+.lead .s{font-size:12.5px;color:var(--ink-2);margin-top:2px}
+
+/* ── wikitable ─────────────────────────────────────────────── */
+table.wt{border-collapse:collapse;width:100%;font-size:13px;
+  border:1px solid var(--br-2);margin:10px 0 0;background:var(--bg)}
+table.wt th{background:var(--box-2);border:1px solid var(--br-2);padding:5px 9px;
+  text-align:right;font-weight:700;white-space:nowrap}
+table.wt th.l,table.wt td.l{text-align:left}
+table.wt th.c,table.wt td.c{text-align:center}
+table.wt td{border:1px solid var(--br-3);padding:4px 9px;text-align:right}
+table.wt tr:hover td{background:#fafbfc}
+table.wt tr.hl td{background:var(--hl)}
+table.wt tfoot td{background:var(--box);font-weight:700;
+  border-top:1px solid var(--br-2)}
+.sm{font-size:12px;color:var(--ink-3)}
+.scroll{overflow-x:auto}
+
+/* ── charts ────────────────────────────────────────────────── */
+.chart{width:100%;display:block}
+.cwrap{position:relative;border:1px solid var(--br-2);background:var(--bg);
+  padding:8px 4px 4px;margin-top:10px}
+.tip{position:absolute;pointer-events:none;background:var(--bg);
+  border:1px solid var(--br);padding:6px 9px;font-size:12px;z-index:9;
+  white-space:nowrap;opacity:0;transition:opacity .1s;box-shadow:0 2px 6px #0002}
+.tip.on{opacity:1}
+.tip .r{display:flex;gap:14px;justify-content:space-between}
+.tip .r span:first-child{color:var(--ink-3)}
+.caption{font-size:12px;color:var(--ink-3);margin-top:6px;font-style:italic}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2);
+  margin-top:8px}
+.legend i{width:10px;height:10px;display:inline-block;margin-right:6px;
+  vertical-align:-1px;border:1px solid #0002}
+
+/* ── distance bars, as a table-like list ───────────────────── */
+.grp{font-size:12px;font-weight:700;margin:14px 0 6px;color:var(--ink-2)}
+.grp span{font-weight:400;color:var(--ink-3)}
+.row{display:grid;grid-template-columns:128px 1fr 132px;gap:11px;align-items:center;
+  padding:3px 0;border-bottom:1px solid var(--br-3)}
+.row:last-child{border-bottom:none}
+.rn{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr{position:relative;height:14px;background:var(--box);
+  border:1px solid var(--br-3)}
+.fl{position:absolute;left:0;top:0;bottom:0;background:var(--br);transition:width .3s}
+.fl.ok{background:var(--up)}
+.fl.no{width:100%!important;background:repeating-linear-gradient(45deg,
+  var(--box),var(--box) 4px,var(--box-2) 4px,var(--box-2) 8px)}
+.th{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--mark)}
+.row.lead2 .th::after{content:"cost";position:absolute;top:-15px;left:3px;
+  font-size:10px;color:var(--mark);white-space:nowrap}
+.rv{font-size:12.5px;text-align:right;color:var(--ink-3);line-height:1.35}
+.rv b{color:var(--ink)}
+.rv .st{display:block;font-size:11px}
+.st.a{color:var(--up)} .st.b{color:var(--mark)} .st.c{color:var(--ink-3)}
+
+/* ── health ────────────────────────────────────────────────── */
+.hb{display:flex;height:12px;border:1px solid var(--br-2);background:var(--box);
+  margin:10px 0}
+.sw{width:10px;height:10px;display:inline-block;border:1px solid #0002}
+
+/* ── day tabs ──────────────────────────────────────────────── */
+.days{display:flex;gap:0;flex-wrap:wrap;margin:12px 0 0;
+  border-bottom:1px solid var(--br)}
+.day{padding:6px 13px;cursor:pointer;font-size:12.5px;color:var(--link);
+  border:1px solid transparent;border-bottom:none;margin-bottom:-1px}
+.day:hover{background:var(--box);text-decoration:underline}
+.day.on{background:var(--bg);border-color:var(--br);color:var(--ink);
+  font-weight:700;text-decoration:none}
+.day .dv{color:var(--ink-3);font-weight:400}
+.empty{border:1px solid var(--br-2);background:var(--box);padding:20px;
+  color:var(--ink-2);margin-top:12px;text-align:center}
+.old{color:var(--down)}
+footer{margin-top:34px;padding-top:10px;border-top:1px solid var(--br-2);
+  font-size:12px;color:var(--ink-3)}
+
+/* ── mathematics: MathML, set the way Wikipedia sets its formulas ── */
+math{font-family:"Latin Modern Math","STIX Two Math","Cambria Math","Libertinus Math",
+  "DejaVu Math TeX Gyre","TeX Gyre Termes Math",var(--serif);font-size:17px}
+.eq{display:flex;align-items:flex-start;gap:12px;margin:10px 0 10px 1.6em;overflow-x:auto}
+.eq math[display=block]{text-align:left;margin:0;flex:0 1 auto}
+.eq .no{order:2;margin-left:auto;color:var(--ink-3);font-size:12.5px;padding-top:6px;
+  flex:none}
+.math p{max-width:86ch;margin:8px 0}
+.math .dfn{font-style:italic}
+.thm{border-left:3px solid var(--br-2);padding:2px 0 2px 14px;margin:12px 0;
+  color:var(--ink-2);max-width:86ch}
+.thm b{color:var(--ink)}
+.viol{color:var(--down);font-weight:700}
+.exps{display:flex;gap:0;flex-wrap:wrap;margin:10px 0 0;border-bottom:1px solid var(--br)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Arbitrage engine</h1>
+  <div class="status">
+    <span class="chipx" id="mode">&mdash;</span>
+    <span class="chipx" id="phase">&mdash;</span>
+    <span><i class="dot" id="dot"></i> <span id="conn">connecting</span></span>
+    <span class="n" id="clock">--:--:--</span>
+    <span class="aside" style="margin-left:auto" id="scope"></span>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <div class="lead">
+        <div class="k">Today&rsquo;s profit and loss</div>
+        <div class="v n" id="pnl">₹0.00</div>
+        <div class="s" id="pnlsub">&mdash;</div>
+      </div>
+      <h2 class="sec">Paper run</h2>
+      <p class="note">Cumulative profit across the 30-day trial, one point per
+        session. Flat stretches are days the engine correctly found nothing worth
+        trading.</p>
+      <div class="grid2 even">
+        <div>
+          <div class="cwrap"><svg id="eq" class="chart"></svg>
+            <div class="tip" id="eqtip"></div></div>
+          <div class="caption">Equity against starting capital (dashed).</div>
+        </div>
+        <div>
+          <div class="cwrap"><svg id="dly" class="chart"></svg>
+            <div class="tip" id="dlytip"></div></div>
+          <div class="caption">Net per session, after every cost.</div>
+          <div class="legend"><span><i style="background:var(--up)"></i>profit</span>
+            <span><i style="background:var(--down)"></i>loss</span></div>
+        </div>
+      </div>
+      <div class="scroll"><table class="wt" id="tot"></table></div>
+    </div>
+    <div>
+      <table class="info" id="info"><caption>Session</caption></table>
+      <div style="margin-top:16px"><table class="info" id="engine">
+        <caption>Engine</caption></table></div>
+    </div>
+  </div>
+
+  <h2>Indices</h2>
+  <p class="note">Select a row to filter the price chart, the bars and the trade
+    log below.</p>
+  <div class="scroll"><table class="wt" id="idx"></table></div>
+
+  <div class="grid2 even">
+    <div>
+      <h2 id="cndt">Price</h2>
+      <div class="cwrap"><svg id="cnd" class="chart"></svg>
+        <div class="tip" id="cndtip"></div></div>
+      <div class="caption" id="chint2"></div>
+    </div>
+    <div>
+      <h2>Intraday</h2>
+      <div class="cwrap"><svg id="intr" class="chart"></svg>
+        <div class="tip" id="intrtip"></div></div>
+      <div class="caption">Cumulative profit through the session, stepping at each
+        fill.</div>
+    </div>
+  </div>
+
+  <div class="grid2 wide">
+    <div>
+      <div class="hrow"><h2 style="flex:1">Distance to profitable</h2></div>
+      <p class="note">Best violation on screen against what that structure costs to
+        trade. This view ignores quote age on purpose, so it shows raw
+        dislocations; a row marked <i>stale</i> cleared the cost line but not the
+        freshness gate, and would not have been traded.</p>
+      <div id="bars"></div>
+    </div>
+    <div>
+      <h2>Quote health</h2>
+      <p class="note">Why legs are not tradable. Every strategy needs all of its
+        legs two-sided, fresh and deep at the same instant.</p>
+      <div class="hb" id="hb"></div>
+      <div class="scroll"><table class="wt" id="lg"></table></div>
+      <h3>Box-implied financing</h3>
+      <div class="scroll"><table class="wt" id="rates"></table></div>
+      <h3>Broker margin per lot</h3>
+      <p class="note">What Angel One blocks for a one-lot hedged structure on each
+        chain, from its margin calculator. This, not the settlement obligation, is
+        the "invested" figure the return band is judged against.</p>
+      <div class="scroll"><table class="wt" id="mrg"></table></div>
+      <h3>Rejected signals</h3>
+      <div class="scroll"><table class="wt" id="rej"></table></div>
+    </div>
+  </div>
+
+  <h2>Mathematics</h2>
+  <div class="math">
+  <p class="note">Every rule the engine enforces is a consequence of one identity:
+    an option's price is the discounted integral of its payoff against the
+    risk-neutral density <i>q</i>. Differentiating that integral in the strike
+    turns butterflies into densities, vertical spreads into probabilities, boxes
+    into discount factors and put–call parity into the forward. The tables below
+    evaluate each of these on live mid prices, once every two seconds.</p>
+
+  <h3>1. Pricing as an integral</h3>
+  <div class="eq"><span class="no">(1)</span>
+  <math display="block"><mrow>
+    <mi>C</mi><mo>(</mo><mi>K</mi><mo>)</mo><mo>=</mo>
+    <mi>D</mi><mo>(</mo><mi>T</mi><mo>)</mo>
+    <msubsup><mo>∫</mo><mi>K</mi><mi>∞</mi></msubsup>
+    <mo>(</mo><mi>S</mi><mo>−</mo><mi>K</mi><mo>)</mo><mspace width="0.17em"/>
+    <mi>q</mi><mo>(</mo><mi>S</mi><mo>)</mo><mspace width="0.17em"/><mi>d</mi><mi>S</mi>
+    <mo>,</mo><mspace width="1.5em"/>
+    <mi>P</mi><mo>(</mo><mi>K</mi><mo>)</mo><mo>=</mo>
+    <mi>D</mi><mo>(</mo><mi>T</mi><mo>)</mo>
+    <msubsup><mo>∫</mo><mn>0</mn><mi>K</mi></msubsup>
+    <mo>(</mo><mi>K</mi><mo>−</mo><mi>S</mi><mo>)</mo><mspace width="0.17em"/>
+    <mi>q</mi><mo>(</mo><mi>S</mi><mo>)</mo><mspace width="0.17em"/><mi>d</mi><mi>S</mi>
+  </mrow></math></div>
+  <div class="eq"><span class="no">(2)</span>
+  <math display="block"><mrow>
+    <mi>D</mi><mo>(</mo><mi>T</mi><mo>)</mo><mo>=</mo>
+    <mi>exp</mi><mo>(</mo><mo>−</mo>
+    <msubsup><mo>∫</mo><mn>0</mn><mi>T</mi></msubsup>
+    <mi>r</mi><mo>(</mo><mi>t</mi><mo>)</mo><mspace width="0.17em"/><mi>d</mi><mi>t</mi>
+    <mo>)</mo><mo>=</mo><msup><mi>e</mi><mrow><mo>−</mo><mi>r</mi><mi>T</mi></mrow></msup>
+    <mo>,</mo><mspace width="1.5em"/>
+    <msubsup><mo>∫</mo><mn>0</mn><mi>∞</mi></msubsup>
+    <mi>q</mi><mo>(</mo><mi>S</mi><mo>)</mo><mspace width="0.17em"/><mi>d</mi><mi>S</mi>
+    <mo>=</mo><mn>1</mn>
+  </mrow></math></div>
+  <p>Here <i>D</i>(<i>T</i>) is the discount factor to expiry, <i>r</i> the
+    financing rate and <i>q</i> the density the market is implicitly quoting. The
+    engine never assumes <i>r</i>: it reads it off the chain, as in (3), one rate per
+    expiry, and discounts money it will receive at the borrow rate and money it
+    must pay at the lend rate.</p>
+
+  <h3>2. The box integrates the whole density: discounting and the implied rate</h3>
+  <div class="eq"><span class="no">(3)</span>
+  <math display="block"><mrow>
+    <mo>[</mo><mi>C</mi><mo>(</mo><msub><mi>K</mi><mn>1</mn></msub><mo>)</mo><mo>−</mo>
+    <mi>C</mi><mo>(</mo><msub><mi>K</mi><mn>2</mn></msub><mo>)</mo><mo>]</mo><mo>+</mo>
+    <mo>[</mo><mi>P</mi><mo>(</mo><msub><mi>K</mi><mn>2</mn></msub><mo>)</mo><mo>−</mo>
+    <mi>P</mi><mo>(</mo><msub><mi>K</mi><mn>1</mn></msub><mo>)</mo><mo>]</mo>
+    <mo>=</mo><mi>D</mi><mo>(</mo><mi>T</mi><mo>)</mo>
+    <msubsup><mo>∫</mo><mn>0</mn><mi>∞</mi></msubsup>
+    <mo>(</mo><msub><mi>K</mi><mn>2</mn></msub><mo>−</mo><msub><mi>K</mi><mn>1</mn></msub><mo>)</mo>
+    <mspace width="0.17em"/><mi>q</mi><mo>(</mo><mi>S</mi><mo>)</mo><mspace width="0.17em"/><mi>d</mi><mi>S</mi>
+    <mo>=</mo><mi>D</mi><mo>(</mo><mi>T</mi><mo>)</mo>
+    <mo>(</mo><msub><mi>K</mi><mn>2</mn></msub><mo>−</mo><msub><mi>K</mi><mn>1</mn></msub><mo>)</mo>
+    <mspace width="1.5em"/><mo>⇒</mo><mspace width="1.5em"/>
+    <mover><mi>r</mi><mo>^</mo></mover><mo>=</mo>
+    <mo>−</mo><mfrac><mn>1</mn><mi>T</mi></mfrac>
+    <mi>ln</mi><mfrac><mi>B</mi><mrow><msub><mi>K</mi><mn>2</mn></msub><mo>−</mo><msub><mi>K</mi><mn>1</mn></msub></mrow></mfrac>
+  </mrow></math></div>
+  <p>A box's payoff is the constant <i>K</i><sub>2</sub> − <i>K</i><sub>1</sub>
+    whatever happens, so its price <i>B</i> is that constant discounted — the
+    density integrates to one and drops out. The ratio
+    <i>B</i>/<i>D</i>(<i>K</i><sub>2</sub> − <i>K</i><sub>1</sub>) must be exactly 1;
+    the median over the chain gives the market's own rate, and each chain is
+    discounted at its own.</p>
+  <div class="scroll"><table class="wt" id="mrate"></table></div>
+
+  <h3>3. Butterflies are the density (Breeden–Litzenberger, 1978)</h3>
+  <div class="eq"><span class="no">(4)</span>
+  <math display="block"><mrow>
+    <mfrac><mrow><msup><mo>∂</mo><mn>2</mn></msup><mi>C</mi></mrow>
+           <mrow><mo>∂</mo><msup><mi>K</mi><mn>2</mn></msup></mrow></mfrac>
+    <mo>=</mo><mi>D</mi><mo>(</mo><mi>T</mi><mo>)</mo><mspace width="0.17em"/>
+    <mi>q</mi><mo>(</mo><mi>K</mi><mo>)</mo><mo>≥</mo><mn>0</mn>
+    <mo>,</mo><mspace width="1.5em"/>
+    <mover><mi>q</mi><mo>^</mo></mover><mo>(</mo><msub><mi>K</mi><mi>i</mi></msub><mo>)</mo><mo>=</mo>
+    <mfrac><mrow>
+      <mi>C</mi><mo>(</mo><msub><mi>K</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>)</mo>
+      <mo>−</mo><mn>2</mn><mi>C</mi><mo>(</mo><msub><mi>K</mi><mi>i</mi></msub><mo>)</mo>
+      <mo>+</mo><mi>C</mi><mo>(</mo><msub><mi>K</mi><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>)</mo>
+    </mrow><mrow><mi>D</mi><mo>(</mo><mi>T</mi><mo>)</mo><msup><mi>h</mi><mn>2</mn></msup></mrow></mfrac>
+  </mrow></math></div>
+  <p>The second difference of call prices across three equally spaced strikes is a
+    butterfly. Its price is <i>D</i>·<i>h</i><sup>2</sup> times the density at the middle
+    strike, so it can never be negative: a butterfly quoted below zero is the
+    market offering to pay you to hold a non-negative payoff. Bars below the axis
+    are exactly the convexity violations the <code>BUTTERFLY</code> scanner trades.</p>
+  <div class="exps" id="mexps"></div>
+  <div class="cwrap"><svg class="chart" id="dens"></svg><div class="tip" id="denstip"></div></div>
+  <div class="caption" id="denscap"></div>
+
+  <h3>4. Vertical spreads are probabilities</h3>
+  <div class="eq"><span class="no">(5)</span>
+  <math display="block"><mrow>
+    <mo>−</mo><mfrac><mrow><mo>∂</mo><mi>C</mi></mrow><mrow><mo>∂</mo><mi>K</mi></mrow></mfrac>
+    <mo>=</mo><mi>D</mi><mo>(</mo><mi>T</mi><mo>)</mo>
+    <msubsup><mo>∫</mo><mi>K</mi><mi>∞</mi></msubsup>
+    <mi>q</mi><mo>(</mo><mi>S</mi><mo>)</mo><mspace width="0.17em"/><mi>d</mi><mi>S</mi>
+    <mo>=</mo><mi>D</mi><mo>(</mo><mi>T</mi><mo>)</mo>
+    <mo>[</mo><mn>1</mn><mo>−</mo><mi>Q</mi><mo>(</mo><mi>K</mi><mo>)</mo><mo>]</mo>
+    <mspace width="1.5em"/><mo>⇒</mo><mspace width="1.5em"/>
+    <mn>0</mn><mo>≤</mo>
+    <mfrac><mrow><mi>C</mi><mo>(</mo><msub><mi>K</mi><mn>1</mn></msub><mo>)</mo><mo>−</mo>
+                 <mi>C</mi><mo>(</mo><msub><mi>K</mi><mn>2</mn></msub><mo>)</mo></mrow>
+           <mrow><mi>D</mi><mo>(</mo><mi>T</mi><mo>)</mo>
+                 <mo>(</mo><msub><mi>K</mi><mn>2</mn></msub><mo>−</mo><msub><mi>K</mi><mn>1</mn></msub><mo>)</mo></mrow></mfrac>
+    <mo>≤</mo><mn>1</mn>
+  </mrow></math></div>
+  <p>The first difference is the tail probability, so a call spread is worth
+    between nothing and its discounted width; the same holds for puts with
+    <i>Q</i> in place of 1 − <i>Q</i>. The step curve is the distribution function
+    <i>Q̂</i> the chain implies, read off adjacent call mids; any step that runs
+    backwards is a <code>VERTICAL</code> violation.</p>
+  <div class="cwrap"><svg class="chart" id="cdf"></svg><div class="tip" id="cdftip"></div></div>
+  <div class="caption">Implied distribution function <i>Q̂</i>(<i>K</i>) = 1 + [<i>C</i>(<i>K</i><sub><i>i</i>+1</sub>) − <i>C</i>(<i>K</i><sub><i>i</i></sub>)] / <i>D h</i>, from live call mids. Dashed: the spot.</div>
+  <div class="scroll"><table class="wt" id="mbound"></table></div>
+
+  <h3>5. Put–call parity is the first moment</h3>
+  <div class="eq"><span class="no">(6)</span>
+  <math display="block"><mrow>
+    <mi>C</mi><mo>(</mo><mi>K</mi><mo>)</mo><mo>−</mo><mi>P</mi><mo>(</mo><mi>K</mi><mo>)</mo>
+    <mo>=</mo><mi>D</mi><mo>(</mo><mi>T</mi><mo>)</mo>
+    <msubsup><mo>∫</mo><mn>0</mn><mi>∞</mi></msubsup>
+    <mo>(</mo><mi>S</mi><mo>−</mo><mi>K</mi><mo>)</mo><mspace width="0.17em"/>
+    <mi>q</mi><mo>(</mo><mi>S</mi><mo>)</mo><mspace width="0.17em"/><mi>d</mi><mi>S</mi>
+    <mo>=</mo><mi>D</mi><mo>(</mo><mi>T</mi><mo>)</mo>
+    <mo>(</mo><mi>F</mi><mo>−</mo><mi>K</mi><mo>)</mo>
+    <mspace width="1.5em"/><mo>⇒</mo><mspace width="1.5em"/>
+    <mover><mi>F</mi><mo>^</mo></mover><mo>=</mo><mi>K</mi><mo>+</mo>
+    <mfrac><mrow><mi>C</mi><mo>(</mo><mi>K</mi><mo>)</mo><mo>−</mo><mi>P</mi><mo>(</mo><mi>K</mi><mo>)</mo></mrow>
+           <mrow><mi>D</mi><mo>(</mo><mi>T</mi><mo>)</mo></mrow></mfrac>
+  </mrow></math></div>
+  <p>Subtracting the two integrals in (1) leaves the mean of the density, the
+    forward <i>F</i>. Every strike therefore implies the same futures price; where
+    a listed future settles on the same day, the gap between <i>F̂</i> and its bid
+    or ask is the <code>PCP</code> conversion/reversal edge, before costs.</p>
+  <div class="scroll"><table class="wt" id="mpar"></table></div>
+
+  <h3>6. Edge, cost, and the band</h3>
+  <div class="eq"><span class="no">(7)</span>
+  <math display="block"><mrow>
+    <mi>gross</mi><mo>=</mo>
+    <munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover>
+    <msub><mi>σ</mi><mi>i</mi></msub><msub><mi>p</mi><mi>i</mi></msub><msub><mi>q</mi><mi>i</mi></msub>
+    <mo>−</mo><mi>D</mi><mo>(</mo><mi>T</mi><mo>)</mo>
+    <munder><mi>min</mi><mi>S</mi></munder>
+    <mi>Π</mi><mo>(</mo><mi>S</mi><mo>)</mo>
+    <mo>,</mo><mspace width="1.5em"/>
+    <mi>net</mi><mo>=</mo><mi>gross</mi><mo>−</mo>
+    <munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover>
+    <msub><mi>c</mi><mi>i</mi></msub>
+  </mrow></math></div>
+  <div class="eq"><span class="no">(8)</span>
+  <math display="block"><mrow>
+    <msub><mi>c</mi><mi>i</mi></msub><mo>=</mo><mi>b</mi>
+    <mo>+</mo><msub><mi>τ</mi><mi>STT</mi></msub><mspace width="0.17em"/>
+    <msub><mn>1</mn><mi>sell</mi></msub><msub><mi>p</mi><mi>i</mi></msub><msub><mi>q</mi><mi>i</mi></msub>
+    <mo>+</mo><msub><mi>τ</mi><mi>exch</mi></msub><msub><mi>p</mi><mi>i</mi></msub><msub><mi>q</mi><mi>i</mi></msub>
+    <mo>+</mo><msub><mi>τ</mi><mi>GST</mi></msub>
+    <mo>(</mo><mi>b</mi><mo>+</mo><msub><mi>τ</mi><mi>exch</mi></msub><msub><mi>p</mi><mi>i</mi></msub><msub><mi>q</mi><mi>i</mi></msub><mo>)</mo>
+    <mo>+</mo><msub><mi>τ</mi><mi>stamp</mi></msub><mspace width="0.17em"/>
+    <msub><mn>1</mn><mi>buy</mi></msub><msub><mi>p</mi><mi>i</mi></msub><msub><mi>q</mi><mi>i</mi></msub>
+    <mo>+</mo><msub><mi>τ</mi><mi>SEBI</mi></msub><msub><mi>p</mi><mi>i</mi></msub><msub><mi>q</mi><mi>i</mi></msub>
+    <mo>+</mo><mi>s</mi><mspace width="0.17em"/><msub><mi>q</mi><mi>i</mi></msub>
+  </mrow></math></div>
+  <div class="eq"><span class="no">(9)</span>
+  <math display="block"><mrow>
+    <mi>ρ</mi><mo>=</mo>
+    <mfrac><mi>net</mi><mrow><mi>S</mi><mo>·</mo><mi>q</mi></mrow></mfrac>
+    <mo>·</mo>
+    <mfrac><mn>365</mn><mrow><mi>max</mi><mo>(</mo><mi>T</mi><mo>,</mo><mspace width="0.17em"/><mn>1</mn><mspace width="0.17em"/><mtext>day</mtext><mo>)</mo></mrow></mfrac>
+    <mo>,</mo><mspace width="1.5em"/>
+    <mtext>trade</mtext><mspace width="0.5em"/><mo>⇔</mo><mspace width="0.5em"/>
+    <mn>2%</mn><mo>≤</mo><mi>ρ</mi><mo>≤</mo><mn>5%</mn>
+    <mspace width="0.5em"/><mtext>per year</mtext>
+  </mrow></math></div>
+  <p>In (7), <i>σ</i><sub><i>i</i></sub> = +1 for a leg sold and −1 for a leg
+    bought, <i>p</i><sub><i>i</i></sub> is the price crossed (bid to sell, ask to
+    buy), <i>q</i><sub><i>i</i></sub> the quantity and Π the settlement payoff,
+    which is piecewise linear with kinks only at strikes, so its minimum is found
+    exactly by evaluating it at every strike. (8) is the statutory cost of one
+    leg: brokerage <i>b</i>, STT on sales, exchange fee, GST on the two, stamp
+    duty on purchases, the SEBI fee and slippage <i>s</i> per unit. (9) is the
+    band: the net edge as an annualised excess yield on the contract value the
+    structure controls, which for a box is exactly how far the implied rate sits
+    from fair. The table shows what 2% and 5% per year come to on each chain
+    today, in rupees and in index points.</p>
+  <div class="scroll"><table class="wt" id="mband"></table></div>
+
+  <h3>7. Margin and the stake</h3>
+  <div class="eq"><span class="no">(10)</span>
+  <math display="block"><mrow>
+    <mi>M</mi><mo>=</mo><mi>max</mi><mo>(</mo>
+    <msub><mi>M</mi><mi>settle</mi></msub><mo>,</mo><mspace width="0.17em"/>
+    <msub><mi>M</mi><mi>Angel</mi></msub><mo>)</mo>
+    <mo>,</mo><mspace width="1.5em"/>
+    <msub><mi>M</mi><mi>settle</mi></msub><mo>=</mo><mi>max</mi><mo>(</mo>
+    <mo>−</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover>
+    <msub><mi>σ</mi><mi>i</mi></msub><msub><mi>p</mi><mi>i</mi></msub><msub><mi>q</mi><mi>i</mi></msub>
+    <mo>,</mo><mspace width="0.17em"/>
+    <mo>−</mo><munder><mi>min</mi><mi>S</mi></munder><mi>Π</mi><mo>(</mo><mi>S</mi><mo>)</mo>
+    <mo>,</mo><mspace width="0.17em"/><mn>0</mn><mo>)</mo>
+    <mo>,</mo><mspace width="1.5em"/>
+    <mi>lots</mi><mo>=</mo><mi>min</mi><mo>(</mo>
+    <mo>⌊</mo><mfrac><mtext>stake</mtext><mi>M</mi></mfrac><mo>⌋</mo><mo>,</mo><mspace width="0.17em"/>
+    <mtext>depth</mtext><mo>,</mo><mspace width="0.17em"/><mn>12</mn><mo>)</mo>
+  </mrow></math></div>
+  <p><i>M</i><sub>Angel</sub> is what Angel One's margin calculator returns for the
+    legs as a basket (SPAN plus exposure, net of the hedge benefit); it is what
+    the account must actually hold, and is the "invested" figure on every trade.
+    The stake is fixed at <span id="mstake"></span> and is never exceeded: a
+    structure whose single lot needs more is not traded.</p>
+
+  <h3>8. The futures curve and calendar carry</h3>
+  <div class="eq"><span class="no">(11)</span>
+  <math display="block"><mrow>
+    <mi>F</mi><mo>(</mo><mi>T</mi><mo>)</mo><mo>=</mo><mi>S</mi>
+    <msup><mi>e</mi><mrow><mi>r</mi><mi>T</mi></mrow></msup>
+    <mo>,</mo><mspace width="1.5em"/>
+    <msub><mi>r</mi><mrow><mn>1</mn><mo>,</mo><mn>2</mn></mrow></msub><mo>=</mo>
+    <mfrac><mrow><mi>ln</mi><mo>(</mo><msub><mi>F</mi><mn>2</mn></msub><mo>/</mo><msub><mi>F</mi><mn>1</mn></msub><mo>)</mo></mrow>
+           <mrow><msub><mi>T</mi><mn>2</mn></msub><mo>−</mo><msub><mi>T</mi><mn>1</mn></msub></mrow></mfrac>
+    <mo>,</mo><mspace width="1.5em"/>
+    <mtext>fair spread</mtext><mo>=</mo><msub><mi>F</mi><mn>1</mn></msub>
+    <mo>(</mo><msup><mi>e</mi><mrow><mi>r</mi><mo>(</mo><msub><mi>T</mi><mn>2</mn></msub><mo>−</mo><msub><mi>T</mi><mn>1</mn></msub><mo>)</mo></mrow></msup><mo>−</mo><mn>1</mn><mo>)</mo>
+  </mrow></math></div>
+  <p>Each future implies a carry rate to its own date, and two futures imply a
+    forward carry between their dates. A calendar spread is rich when that forward
+    carry exceeds the configured financing rate and cheap when it falls short;
+    the box-implied rate of each expiry is shown beside it for comparison. Shown as analytics only:
+    unlike a box or a parity trade, a calendar spread's payoff is not locked in
+    at entry, so the engine does not book it as arbitrage.</p>
+  <div id="mcurve"></div>
+  </div>
+
+  <h2>Trade log</h2>
+  <p class="note">Executed automatically whenever an arbitrage clears the return
+    band. Each one is also sent to Telegram.</p>
+  <div class="days" id="days"></div>
+  <div id="trades"></div>
+
+  <h2>Live chain</h2>
+  <div id="chain"></div>
+
+  <footer id="foot"></footer>
+</div>
+<script>
+const $ = i => document.getElementById(i);
+const NS = "http://www.w3.org/2000/svg";
+let SEL = null, DAY = null, HIST = null, CND = {}, SIG = {};
+
+const nf = (n, d = 0) => (n == null || isNaN(n)) ? "—"
+  : Number(n).toLocaleString("en-IN", {minimumFractionDigits: d, maximumFractionDigits: d});
+const rs = (n, d = 2) => (n < 0 ? "-" : "") + "₹" + nf(Math.abs(n), d);
+const lakh = n => Math.abs(n) >= 1e5 ? "₹" + (n / 1e5).toFixed(2) + " lakh" : rs(n, 0);
+const age = ms => ms == null ? "—" : ms < 1000 ? nf(ms) + " ms"
+  : ms < 60000 ? (ms / 1000).toFixed(1) + " s" : Math.round(ms / 1000) + " s";
+const sgn = n => n > 0 ? "up" : n < 0 ? "dn" : "";
+const el = (t, a = {}) => { const e = document.createElementNS(NS, t);
+  for (const k in a) e.setAttribute(k, a[k]); return e; };
+const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function changed(k, s) { if (SIG[k] === s) return false; SIG[k] = s; return true; }
+
+function frame(svg, h) {
+  const w = Math.max(240, svg.parentElement.clientWidth - 8);
+  svg.setAttribute("width", w); svg.setAttribute("height", h);
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  return w;
+}
+function grid(svg, x0, x1, y0, y1, n, fmt, lo, hi) {
+  for (let i = 0; i <= n; i++) {
+    const y = y1 - (y1 - y0) * i / n, v = lo + (hi - lo) * i / n;
+    svg.appendChild(el("line", {x1: x0, x2: x1, y1: y, y2: y,
+      stroke: cssv("--br-3"), "stroke-width": 1}));
+    const t = el("text", {x: x0 - 6, y: y + 3.5, fill: cssv("--ink-3"),
+      "font-size": 10, "text-anchor": "end", "font-family": cssv("--sans")});
+    t.textContent = fmt(v); svg.appendChild(t);
+  }
+}
+function xlab(svg, x, y, s, anchor) {
+  const t = el("text", {x, y, fill: cssv("--ink-3"), "font-size": 10,
+    "text-anchor": anchor || "middle", "font-family": cssv("--sans")});
+  t.textContent = s; svg.appendChild(t);
+}
+function none(svg, w, h, msg) {
+  const t = el("text", {x: w / 2, y: h / 2, fill: cssv("--ink-3"), "font-size": 12.5,
+    "text-anchor": "middle", "font-family": cssv("--sans")});
+  t.textContent = msg; svg.appendChild(t);
+}
+function hover(svg, tip, zones) {
+  svg.onmousemove = ev => {
+    const r = svg.getBoundingClientRect(), mx = ev.clientX - r.left;
+    let best = null, bd = 1e9;
+    for (const z of zones) { const d = Math.abs(z.x - mx); if (d < bd) { bd = d; best = z; } }
+    if (!best || bd > 60) { tip.classList.remove("on"); return; }
+    tip.innerHTML = best.html; tip.classList.add("on");
+    const tw = tip.offsetWidth;
+    tip.style.left = Math.max(0, Math.min(r.width - tw, best.x - tw / 2)) + "px";
+    tip.style.top = Math.max(0, best.y - tip.offsetHeight - 10) + "px";
+  };
+  svg.onmouseleave = () => tip.classList.remove("on");
+}
+
+function equityChart(pts, base) {
+  const svg = $("eq"), tip = $("eqtip"), H = 190, w = frame(svg, H);
+  if (!pts.length) return none(svg, w, H, "No sessions recorded yet");
+  const L = 54, R = 8, T = 10, B = 22, x0 = L, x1 = w - R, y0 = T, y1 = H - B;
+  const vals = pts.map(p => p.equity);
+  let lo = Math.min(base, ...vals), hi = Math.max(base, ...vals);
+  const pad = (hi - lo) * .22 || Math.max(1, base * .0004); lo -= pad; hi += pad;
+  const X = i => pts.length === 1 ? (x0 + x1) / 2 : x0 + (x1 - x0) * i / (pts.length - 1);
+  const Y = v => y1 - (y1 - y0) * (v - lo) / (hi - lo);
+  grid(svg, x0, x1, y0, y1, 4, v => "₹" + ((v - base) / 1000).toFixed(1) + "k", lo, hi);
+  svg.appendChild(el("line", {x1: x0, x2: x1, y1: Y(base), y2: Y(base),
+    stroke: cssv("--ink-3"), "stroke-width": 1, "stroke-dasharray": "4 3"}));
+  const col = vals[vals.length - 1] >= base ? cssv("--up") : cssv("--down");
+  const d = pts.map((p, i) => `${i ? "L" : "M"}${X(i)},${Y(p.equity)}`).join("");
+  svg.appendChild(el("path", {d, fill: "none", stroke: col, "stroke-width": 1.8,
+    "stroke-linejoin": "round"}));
+  const zones = [];
+  pts.forEach((p, i) => {
+    if (pts.length <= 16 || i === pts.length - 1)
+      svg.appendChild(el("circle", {cx: X(i), cy: Y(p.equity), r: 3, fill: col}));
+    zones.push({x: X(i), y: Y(p.equity), html:
+      `<div class="r"><span>${p.date}</span></div>
+       <div class="r"><span>day</span><span class="n ${sgn(p.net)}">${rs(p.net)}</span></div>
+       <div class="r"><span>cumulative</span><span class="n ${sgn(p.cum)}">${rs(p.cum)}</span></div>`});
+  });
+  [0, pts.length - 1].forEach(i => { if (pts[i])
+    xlab(svg, X(i), H - 6, pts[i].date.slice(5), i ? "end" : "start"); });
+  hover(svg, tip, zones);
+}
+
+function dailyChart(days) {
+  const svg = $("dly"), tip = $("dlytip"), H = 190, w = frame(svg, H);
+  if (!days.length) return none(svg, w, H, "No sessions yet");
+  const L = 54, R = 8, T = 10, B = 22, x0 = L, x1 = w - R, y0 = T, y1 = H - B;
+  const m = Math.max(1, ...days.map(d => Math.abs(d.net)));
+  const lo = -m * 1.15, hi = m * 1.15;
+  const Y = v => y1 - (y1 - y0) * (v - lo) / (hi - lo);
+  grid(svg, x0, x1, y0, y1, 4, v => "₹" + (v / 1000).toFixed(1) + "k", lo, hi);
+  svg.appendChild(el("line", {x1: x0, x2: x1, y1: Y(0), y2: Y(0),
+    stroke: cssv("--br"), "stroke-width": 1}));
+  const step = (x1 - x0) / days.length, bw = Math.max(3, Math.min(26, step * .6));
+  const zones = [];
+  days.forEach((d, i) => {
+    const cx = x0 + step * (i + .5), up = d.net >= 0, yv = Y(d.net), yz = Y(0);
+    const h = Math.max(1.5, Math.abs(yv - yz));
+    svg.appendChild(el("rect", {x: cx - bw / 2, y: up ? yz - h : yz, width: bw,
+      height: h, fill: up ? cssv("--up") : cssv("--down")}));
+    zones.push({x: cx, y: Math.min(yv, yz), html:
+      `<div class="r"><span>${d.date}</span></div>
+       <div class="r"><span>net</span><span class="n ${sgn(d.net)}">${rs(d.net)}</span></div>
+       <div class="r"><span>trades</span><span class="n">${d.trades}</span></div>
+       <div class="r"><span>win rate</span><span class="n">${d.win_rate}%</span></div>`});
+  });
+  [0, days.length - 1].forEach(i => { if (days[i])
+    xlab(svg, x0 + step * (i + .5), H - 6, days[i].date.slice(5)); });
+  hover(svg, tip, zones);
+}
+
+function candleChart(rows, name) {
+  const svg = $("cnd"), tip = $("cndtip"), H = 250, w = frame(svg, H);
+  $("cndt").textContent = name ? name + " price" : "Price";
+  if (!rows || !rows.length) return none(svg, w, H, "Waiting for candles…");
+  const L = 58, R = 8, T = 10, B = 22, x0 = L, x1 = w - R, y0 = T, y1 = H - B;
+  const lo0 = Math.min(...rows.map(r => r[3])), hi0 = Math.max(...rows.map(r => r[2]));
+  const pad = (hi0 - lo0) * .07 || 1, lo = lo0 - pad, hi = hi0 + pad;
+  const Y = v => y1 - (y1 - y0) * (v - lo) / (hi - lo);
+  grid(svg, x0, x1, y0, y1, 4, v => nf(v, 0), lo, hi);
+  const step = (x1 - x0) / rows.length, bw = Math.max(1.2, Math.min(8, step * .62));
+  const zones = [];
+  rows.forEach((r, i) => {
+    const [ts, o, h, l, c] = r, cx = x0 + step * (i + .5);
+    const up = c >= o, col = up ? cssv("--up") : cssv("--down");
+    svg.appendChild(el("line", {x1: cx, x2: cx, y1: Y(h), y2: Y(l),
+      stroke: col, "stroke-width": 1}));
+    const yt = Y(Math.max(o, c)), hh = Math.max(1, Math.abs(Y(o) - Y(c)));
+    svg.appendChild(el("rect", {x: cx - bw / 2, y: yt, width: bw, height: hh,
+      fill: up ? cssv("--bg") : col, stroke: col, "stroke-width": 1}));
+    zones.push({x: cx, y: yt, html:
+      `<div class="r"><span>${String(ts).slice(5, 16).replace("T", " ")}</span></div>
+       <div class="r"><span>open</span><span class="n">${nf(o, 2)}</span></div>
+       <div class="r"><span>high</span><span class="n">${nf(h, 2)}</span></div>
+       <div class="r"><span>low</span><span class="n">${nf(l, 2)}</span></div>
+       <div class="r"><span>close</span><span class="n ${up ? "up" : "dn"}">${nf(c, 2)}</span></div>`});
+  });
+  [0, rows.length - 1].forEach(i => { if (rows[i])
+    xlab(svg, x0 + step * (i + .5), H - 6,
+      String(rows[i][0]).slice(5, 16).replace("T", " "), i ? "end" : "start"); });
+  const last = rows[rows.length - 1];
+  $("chint2").textContent = `${rows.length} five-minute bars; last close ${nf(last[4], 2)}. `
+    + `Hollow candles closed up, filled closed down.`;
+  hover(svg, tip, zones);
+}
+
+function intradayChart(pts) {
+  const svg = $("intr"), tip = $("intrtip"), H = 250, w = frame(svg, H);
+  if (!pts || !pts.length) return none(svg, w, H, "No fills yet today");
+  const L = 58, R = 8, T = 10, B = 22, x0 = L, x1 = w - R, y0 = T, y1 = H - B;
+  const vals = [0, ...pts.map(p => p.cum)];
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = (hi - lo) * .25 || 100; lo -= pad; hi += pad;
+  const X = i => pts.length === 1 ? (x0 + x1) / 2
+    : x0 + (x1 - x0) * i / Math.max(1, pts.length - 1);
+  const Y = v => y1 - (y1 - y0) * (v - lo) / (hi - lo);
+  grid(svg, x0, x1, y0, y1, 4, v => rs(v, 0), lo, hi);
+  svg.appendChild(el("line", {x1: x0, x2: x1, y1: Y(0), y2: Y(0),
+    stroke: cssv("--ink-3"), "stroke-width": 1, "stroke-dasharray": "4 3"}));
+  const col = pts[pts.length - 1].cum >= 0 ? cssv("--up") : cssv("--down");
+  // Stepped: profit only moves when a fill lands, so interpolating between
+  // trades would imply money changing hands that never did.
+  let d = `M${X(0)},${Y(0)}`;
+  pts.forEach((p, i) => { d += `L${X(i)},${Y(i ? pts[i - 1].cum : 0)}L${X(i)},${Y(p.cum)}`; });
+  svg.appendChild(el("path", {d, fill: "none", stroke: col, "stroke-width": 1.8}));
+  const zones = [];
+  pts.forEach((p, i) => {
+    svg.appendChild(el("circle", {cx: X(i), cy: Y(p.cum), r: 3, fill: col}));
+    zones.push({x: X(i), y: Y(p.cum), html:
+      `<div class="r"><span>${p.time}</span><span>${p.strategy}</span></div>
+       <div class="r"><span>trade</span><span class="n ${sgn(p.net)}">${rs(p.net)}</span></div>
+       <div class="r"><span>cumulative</span><span class="n ${sgn(p.cum)}">${rs(p.cum)}</span></div>`});
+  });
+  hover(svg, tip, zones);
+}
+</script>
+<script>
+function rowsTable(head, rows, foot) {
+  return `<thead><tr>${head}</tr></thead><tbody>${rows}</tbody>`
+    + (foot ? `<tfoot><tr>${foot}</tr></tfoot>` : "");
+}
+function renderLead(d) {
+  $("pnl").className = "v n " + sgn(d.session_pnl);
+  $("pnl").textContent = rs(d.session_pnl);
+  $("pnlsub").innerHTML = `<span class="${sgn(d.day_pct)}">${d.day_pct >= 0 ? "+" : ""}${nf(d.day_pct, 3)}%</span>
+    of capital &middot; ${d.trades_today} trade${d.trades_today === 1 ? "" : "s"} today`;
+  $("info").innerHTML = `<caption>Session</caption>` + [
+    ["Mode", d.mode], ["Capital", lakh(d.total_capital)],
+    ["Return band", `${d.return_band[0]}–${d.return_band[1]}%`],
+    ["Equity", lakh(d.equity)],
+    ["Deployed", rs(d.capital_deployed, 0)],
+    ["Free", lakh(d.capital_free)],
+    ["Trades today", nf(d.trades_today)],
+    ["Indices", d.indices.join(", ")],
+    ["Chains", nf(d.chains)],
+  ].map(([k, v]) => `<tr><th>${k}</th><td class="n">${v}</td></tr>`).join("");
+  $("engine").innerHTML = `<caption>Engine</caption>` + [
+    ["Ticks", nf(d.ticks)], ["Tick rate", nf(d.tick_rate, 1) + "/s"],
+    ["Last tick", d.quiet_s == null ? "—" : d.quiet_s < 2 ? "just now"
+       : `<span class="${d.quiet_s > 15 ? "dn" : ""}">${nf(d.quiet_s, 0)} s ago</span>`],
+    ["Feed reconnects", nf(d.reconnects || 0) + (d.stalls ? ` (${nf(d.stalls)} stalls)` : "")],
+    ["Dropped", nf(d.dropped)],
+    ["Scan p50", nf(d.scan_p50_us) + " µs"], ["Scan p99", nf(d.scan_p99_us) + " µs"],
+    ["Scan passes", nf(d.passes)],
+    ["Chains skipped", nf(d.chains_skipped)],
+    ["Uptime", (d.uptime_s / 60).toFixed(0) + " min"],
+  ].map(([k, v]) => `<tr><th>${k}</th><td class="n">${v}</td></tr>`).join("");
+  $("scope").textContent = SEL ? "filtered to " + SEL : "";
+}
+function bestFor(d, i) {
+  let b = null;
+  for (const k in d.probe) { const p = d.probe[k];
+    if (p.underlying !== i) continue;
+    const m = p.edge - p.cost; if (!b || m > b.m) b = {m, p}; }
+  return b;
+}
+function renderIdx(d) {
+  const rows = d.indices.map(n => {
+    const b = bestFor(d, n), c = CND[n] || [];
+    const chains = (d.chain || []).filter(x => x.underlying === n).length;
+    let chg = "—";
+    if (c.length > 1) { const p = 100 * (c[c.length - 1][4] - c[0][1]) / c[0][1];
+      chg = `<span class="${sgn(p)}">${p >= 0 ? "+" : ""}${p.toFixed(2)}%</span>`; }
+    const gap = b ? b.p.edge - b.p.cost : null;
+    const st = gap == null ? `<span class="sm">no read</span>`
+      : gap >= 0 ? `<span class="${b.p.fresh ? "up" : ""}">${b.p.fresh ? "tradable" : "stale"} +${gap.toFixed(2)} pt</span>`
+      : `<span class="sm">${gap.toFixed(2)} pt short</span>`;
+    return `<tr class="${SEL === n ? "hl" : ""}" data-i="${n}" style="cursor:pointer">
+      <td class="l"><a href="#">${n}</a></td>
+      <td class="n">${nf(d.spots[n] || 0, 2)}</td><td class="n">${chg}</td>
+      <td class="n">${chains}</td><td class="l">${st}</td></tr>`;
+  }).join("");
+  $("idx").innerHTML = rowsTable(
+    `<th class="l">Index</th><th>Spot</th><th>Change</th><th>Chains</th>
+     <th class="l">Closest opportunity</th>`, rows);
+  document.querySelectorAll("#idx tr[data-i]").forEach(e => e.onclick = ev => {
+    ev.preventDefault(); SEL = SEL === e.dataset.i ? null : e.dataset.i; SIG = {}; MEXP = null; poll(); renderMath(MATH); });
+}
+function renderBars(d) {
+  const keys = Object.keys(d.probe || {}).filter(k => !SEL || d.probe[k].underlying === SEL);
+  if (!keys.length) { $("bars").innerHTML =
+    `<div class="empty">No violation on screen. Every no-arbitrage bound is holding.</div>`;
+    return; }
+  const byIdx = {}; keys.forEach(k => (byIdx[d.probe[k].underlying] ||= []).push(k));
+  let html = "", lead = true;
+  for (const idx of Object.keys(byIdx).sort()) {
+    let ks = byIdx[idx].sort((a, b) =>
+      (d.probe[b].edge - d.probe[b].cost) - (d.probe[a].edge - d.probe[a].cost));
+    const total = ks.length; if (!SEL) ks = ks.slice(0, 5);
+    const max = Math.max(...ks.map(k => Math.max(d.probe[k].edge, d.probe[k].cost))) * 1.14;
+    html += `<div class="grp">${idx}${!SEL && total > ks.length
+      ? ` <span>closest ${ks.length} of ${total}</span>` : ""}</div>`
+      + ks.map(k => {
+      const p = d.probe[k], ok = p.edge > p.cost, no = p.edge <= 0;
+      const w = Math.max(0, Math.min(100, 100 * p.edge / max));
+      const t = Math.max(0, Math.min(100, 100 * p.cost / max));
+      const r = `<div class="row${lead ? " lead2" : ""}">
+        <div class="rn" title="${p.description}">${p.strategy}</div>
+        <div class="tr"><div class="fl ${ok ? "ok" : ""} ${no ? "no" : ""}" style="width:${w}%"></div>
+          <div class="th" style="left:${t}%"></div></div>
+        <div class="rv n"><b>${p.edge.toFixed(2)}</b> / ${p.cost.toFixed(2)} pt
+          <span class="st ${ok ? (p.fresh ? "a" : "b") : no ? "c" : "b"}">${
+            ok ? (p.fresh ? "tradable" : `edge, ${age(p.max_age_ms)} stale`)
+               : no ? "bound holding" : `needs +${(p.cost - p.edge).toFixed(2)}`}</span></div></div>`;
+      lead = false; return r; }).join("");
+  }
+  $("bars").innerHTML = html;
+}
+function renderEngine(d) {
+  const h = d.quote_health;
+  const parts = [["Tradable", h.tradable, "var(--up)"], ["Stale", h.stale, "var(--mark)"],
+                 ["Thin", h.thin, "var(--alt)"], ["One-sided", h.one_sided, "var(--down)"]];
+  $("hb").innerHTML = parts.filter(p => p[1] > 0)
+    .map(p => `<div style="width:${p[1]}%;background:${p[2]}"></div>`).join("");
+  $("lg").innerHTML = rowsTable(`<th class="l">State</th><th>Share of leg checks</th>`,
+    parts.map(p => `<tr><td class="l"><i class="sw" style="background:${p[2]}"></i>
+      ${p[0]}</td><td class="n">${p[1].toFixed(1)}%</td></tr>`).join(""),
+    `<td class="l">Leg checks</td><td class="n">${nf(d.legs_seen)}</td>`);
+  const rk = Object.keys(d.implied_rates).filter(k => !SEL || k.startsWith(SEL));
+  $("rates").innerHTML = rk.length ? rowsTable(`<th class="l">Expiry</th><th>Implied rate</th>`,
+    rk.map(k => `<tr><td class="l">${k}</td>
+      <td class="n">${(d.implied_rates[k] * 100).toFixed(2)}%</td></tr>`).join(""))
+    : rowsTable(`<th class="l">Expiry</th><th>Implied rate</th>`,
+      `<tr><td class="l sm" colspan="2">Not enough fresh quotes; using the configured rate.</td></tr>`);
+  const m = d.margin;
+  const mrows = m ? m.rows.filter(r => !SEL || r.underlying === SEL) : [];
+  $("mrg").innerHTML = mrows.length ? rowsTable(
+    `<th class="l">Chain</th><th class="l">Structure</th><th>Margin / lot</th><th>Checked</th>`,
+    mrows.map(r => `<tr><td class="l">${r.underlying} ${r.expiry}</td>
+      <td class="l">${r.shape}</td><td class="n">${rs(r.per_lot, 0)}</td>
+      <td class="n">${r.at ? new Date(r.at * 1000).toLocaleTimeString("en-IN", {hour12: false}) : "—"}</td></tr>`).join(""),
+    `<td class="l" colspan="4">${m.product}, ${nf(m.calls)} calls${m.failures ? `, ${nf(m.failures)} failed (${m.last_error})` : ""}</td>`)
+    : rowsTable(`<th class="l">Chain</th><th class="l">Structure</th><th>Margin / lot</th><th>Checked</th>`,
+      `<tr><td class="l sm" colspan="4">${m ? "Calibrating from Angel One…" : "Margin service off; using settlement obligation."}</td></tr>`);
+  const jk = Object.keys(d.rejects).sort((a, b) => d.rejects[b] - d.rejects[a]);
+  $("rej").innerHTML = rowsTable(`<th class="l">Reason</th><th>Count</th>`,
+    jk.length ? jk.slice(0, 8).map(k => `<tr><td class="l">${k.replace(/_/g, " ")}</td>
+      <td class="n">${nf(d.rejects[k])}</td></tr>`).join("")
+      : `<tr><td class="l sm" colspan="2">None</td></tr>`);
+}
+function renderTotals(d) {
+  const t = (HIST && HIST.totals) || {};
+  $("tot").innerHTML = rowsTable(
+    `<th class="l">Sessions</th><th>Trades</th><th>Net</th><th>Return</th>
+     <th>Win rate</th><th>Avg / trade</th><th>Best day</th><th>Worst day</th>`,
+    `<tr><td class="l">${t.sessions || 0} of 30</td><td class="n">${nf(t.trades || 0)}</td>
+      <td class="n ${sgn(t.net || 0)}">${rs(t.net || 0)}</td>
+      <td class="n ${sgn(t.net || 0)}">${nf(t.return_pct || 0, 3)}%</td>
+      <td class="n">${nf(t.win_rate || 0, 1)}%</td>
+      <td class="n">${rs(t.avg_per_trade || 0, 0)}</td>
+      <td class="n">${t.best_day ? t.best_day.slice(5) + " " + rs(t.best_net, 0) : "—"}</td>
+      <td class="n">${t.worst_day ? t.worst_day.slice(5) + " " + rs(t.worst_net, 0) : "—"}</td></tr>`);
+}
+function capSrc(x) {
+  const s = x.capital_source || "";
+  if (s === "angel_one") return "Angel One margin";
+  if (s.startsWith("angel_one")) return "est. margin";
+  if (s === "fallback") return "est. margin (uncalibrated)";
+  if (s === "settlement") return "settlement obligation";
+  return "settlement obligation (old record)";
+}
+function tradeTable(list) {
+  const rows = list.map(x => `<tr>
+    <td class="n">${x.time}</td><td class="l">${x.underlying || ""}</td>
+    <td class="l">${x.strategy}<div class="sm">${x.description}</div></td>
+    <td class="n">${rs(x.capital, 0)}<div class="sm">${capSrc(x)}</div></td><td class="n">${rs(x.gross)}</td>
+    <td class="n">${rs(x.cost)}</td>
+    <td class="n ${sgn(x.net)}"><b>${rs(x.net)}</b></td>
+    <td class="n">${x.mtm_pnl == null ? "<span class='sm'>—</span>" : `<span class="${sgn(x.mtm_pnl)}">${(x.mtm_pnl >= 0 ? "+" : "") + rs(x.mtm_pnl)}</span>`}<div class="sm">${x.mtm_kind || ""}</div></td>
+    <td class="n">${x.return_pct.toFixed(2)}%</td>
+    <td class="n">${x.detect_ms.toFixed(2)} ms</td>
+    <td class="n">${x.leg_spread_ms ? nf(x.leg_spread_ms) + " ms" : "—"}</td></tr>`).join("");
+  const net = list.reduce((a, b) => a + b.net, 0);
+  const have = list.filter(x => x.mtm_pnl != null), mtm = have.reduce((a, b) => a + b.mtm_pnl, 0);
+  return `<div class="scroll"><table class="wt">` + rowsTable(
+    `<th>Executed</th><th class="l">Index</th><th class="l">Structure</th>
+     <th>Invested (margin)</th><th>Gross</th><th>Costs</th><th>Locked at entry</th><th>P&amp;L now</th><th>Return on margin</th>
+     <th>Fired in</th><th>Leg spread</th>`, rows,
+    `<td class="l" colspan="6">${list.length} trade${list.length === 1 ? "" : "s"}</td>
+     <td class="n ${sgn(net)}">${rs(net)}</td>
+     <td class="n ${sgn(mtm)}">${have.length ? (mtm >= 0 ? "+" : "") + rs(mtm) : "—"}</td><td colspan="3"></td>`)
+    + `</table></div>`;
+}
+function pnlCell(v, bold) {
+  if (v == null) return `<td class="n sm">—</td>`;
+  return `<td class="n ${sgn(v)}">${bold ? "<b>" : ""}${(v >= 0 ? "+" : "") + rs(v)}${bold ? "</b>" : ""}</td>`;
+}
+function legsTable(list) {
+  const rows = list.flatMap(x => {
+    const legs = x.legs.map((l, i) => `<tr>
+      <td class="n">${i === 0 ? x.time : ""}</td>
+      <td class="l">${l.side}</td><td class="l">${l.symbol}</td>
+      <td class="c">${l.opt || ""}</td><td class="n">${nf(l.qty)}</td>
+      <td class="n">${rs(l.entry != null ? l.entry : l.price)}</td>
+      <td class="n">${l.quoted_at || "—"}<div class="sm">${l.quoted_at ? nf(l.ms_before) + " ms before fire" : ""}</div></td>
+      <td class="n">${l.exit == null ? `<span class="sm">${l.exit_kind || "—"}</span>` : rs(l.exit)}
+        ${l.exit != null ? `<div class="sm">${l.exit_kind}</div>` : ""}</td>
+      ${pnlCell(l.pnl)}</tr>`);
+    const kind = x.mtm_kind || "";
+    const lvl = x.settlement_level ? ` at ${nf(x.settlement_level, 2)}` : "";
+    legs.push(`<tr class="hl"><td></td><td class="l" colspan="4"><b>Trade #${x.id}</b> · ${x.strategy}, ${x.lots} lot${x.lots === 1 ? "" : "s"}
+        <span class="sm">· locked at entry ${rs(x.net)} (gross ${rs(x.gross)} at quotes − slippage ${rs(x.slip || 0)} − costs ${rs(x.cost)})</span></td>
+      <td class="n" colspan="2"><span class="sm">legs ${x.legs_pnl == null ? "—" : (x.legs_pnl >= 0 ? "+" : "") + rs(x.legs_pnl)} − costs ${rs(x.cost)}</span></td>
+      <td class="n"><span class="sm">${kind}${lvl}</span></td>
+      ${pnlCell(x.mtm_pnl, true)}</tr>`);
+    return legs;
+  }).join("");
+  const have = list.filter(x => x.mtm_pnl != null);
+  const tot = have.reduce((a, b) => a + b.mtm_pnl, 0), locked = list.reduce((a, b) => a + b.net, 0);
+  const allSettled = have.length && have.every(x => x.mtm_kind === "settled");
+  return `<h3>Legs, with the instant each quote was seen, entry and exit</h3>
+    <p class="note">Entry is the fill. Exit is the live mid until expiry, then the intrinsic
+      value at the recorded settlement level. A leg's P&amp;L is (exit − entry) × quantity, signed
+      by side; the trade's P&amp;L is the legs less statutory costs, and should converge on the
+      edge locked at entry as the structure settles.</p>
+    <div class="scroll"><table class="wt">` + rowsTable(
+    `<th>Trade</th><th class="l">Side</th><th class="l">Contract</th><th>Type</th>
+     <th>Qty</th><th>Entry</th><th>Quoted at</th><th>Exit</th><th>Leg P&amp;L</th>`, rows,
+    `<td class="l" colspan="5">Overall, ${list.length} trade${list.length === 1 ? "" : "s"} · locked at entry <b>${rs(locked)}</b></td>
+     <td class="n" colspan="2"><span class="sm">${have.length < list.length ? `${list.length - have.length} without marks` : ""}</span></td>
+     <td class="n"><span class="sm">${allSettled ? "settled" : "mark-to-market"}</span></td>
+     ${pnlCell(have.length ? tot : null, true)}`)
+    + `</table></div>`;
+}
+function renderTrades(d) {
+  const days = (HIST && HIST.days) ? HIST.days.slice().reverse() : [];
+  const today = new Date().toISOString().slice(0, 10);
+  if (!DAY) DAY = days.length ? days[0].date : today;
+  $("days").innerHTML = days.slice(0, 30).map(x =>
+    `<div class="day ${DAY === x.date ? "on" : ""}" data-d="${x.date}">
+      ${x.date === today ? "Today" : x.date.slice(5)}
+      <span class="dv">${rs(x.net, 0)}, ${x.trades}</span></div>`).join("")
+    || `<div class="day on">Today <span class="dv">no trades</span></div>`;
+  document.querySelectorAll(".day[data-d]").forEach(e => e.onclick = () => {
+    DAY = e.dataset.d; renderTrades(d); });
+  let list = (HIST && HIST.by_day && HIST.by_day[DAY]) ? HIST.by_day[DAY] : [];
+  if (DAY === today && !list.length) list = d.recent_trades || [];
+  if (SEL) list = list.filter(x => x.underlying === SEL);
+  $("trades").innerHTML = list.length ? tradeTable(list) + legsTable(list)
+    : `<div class="empty">No trades on ${DAY}. The engine fires only when an
+       arbitrage returns ${d.return_band[0]}–${d.return_band[1]}% on the margin
+       Angel One blocks for it.</div>`;
+}
+function renderChain(d) {
+  const cs = (d.chain || []).filter(c => !SEL || c.underlying === SEL);
+  $("chain").innerHTML = cs.map(c => {
+    const r = c.implied_rate != null ? `, implied ${(c.implied_rate * 100).toFixed(2)}%` : "";
+    const f = c.future && c.future.bid > 0
+      ? `, future ${c.future.symbol} at ${c.future.bid.toFixed(2)}`
+      : `, no matching future so put-call parity is disabled`;
+    return `<h3>${c.underlying} ${c.expiry}</h3>
+      <p class="note" style="margin:2px 0 0">${c.segment}, lot ${c.lot}${r}${f}.</p>
+      <div class="scroll"><table class="wt">` + rowsTable(
+      `<th>Age</th><th>CE bid</th><th>CE ask</th><th class="c">Strike</th>
+       <th>PE bid</th><th>PE ask</th><th>Age</th>`,
+      c.rows.map(w => `<tr class="${w.atm ? "hl" : ""}">
+        <td class="n ${w.ce_age > 400 ? "old" : ""}">${age(w.ce_age)}</td>
+        <td class="n">${w.ce_bid.toFixed(2)}</td><td class="n">${w.ce_ask.toFixed(2)}</td>
+        <td class="c n"><b>${nf(w.strike)}</b></td>
+        <td class="n">${w.pe_bid.toFixed(2)}</td><td class="n">${w.pe_ask.toFixed(2)}</td>
+        <td class="n ${w.pe_age > 400 ? "old" : ""}">${age(w.pe_age)}</td></tr>`).join(""))
+      + `</table></div>`;
+  }).join("");
+}
+// ── mathematics ───────────────────────────────────────────────
+let MATH = null, MEXP = null;
+const pct = (x, d = 2) => x == null ? "—" : (100 * x).toFixed(d) + "%";
+const chainKey = c => c.underlying + " " + c.expiry;
+function mathChains(m) { return (m.chains || []).filter(c => !c.error && (!SEL || c.underlying === SEL)); }
+function pickChain(m) {
+  const cs = mathChains(m);
+  if (!cs.length) return null;
+  const pref = SEL || (cs.some(c => c.underlying === "NIFTY") ? "NIFTY" : cs[0].underlying);
+  let c = cs.find(x => chainKey(x) === MEXP);
+  if (!c) { c = cs.filter(x => x.underlying === pref).sort((a, b) => a.T_days - b.T_days)[0] || cs[0]; MEXP = chainKey(c); }
+  return c;
+}
+function densityChart(c) {
+  const svg = $("dens"), tip = $("denstip"), H = 230, w = frame(svg, H);
+  if (!c) return none(svg, w, H, "No chain quoting yet");
+  const L = 58, R = 8, T = 12, B = 22, x0 = L, x1 = w - R, y0 = T, y1 = H - B;
+  const K = c.strikes, q = c.density;
+  const vals = q.filter(v => v != null);
+  if (!vals.length) return none(svg, w, H, "Not enough two-sided quotes to difference");
+  let hi = Math.max(...vals, 0), lo = Math.min(...vals, 0);
+  const pad = (hi - lo) * .12 || 1e-5; hi += pad; lo -= pad;
+  const Y = v => y1 - (y1 - y0) * (v - lo) / (hi - lo);
+  grid(svg, x0, x1, y0, y1, 4, v => (v * 1e4).toFixed(1) + "×10⁻⁴", lo, hi);
+  const step = (x1 - x0) / K.length, bw = Math.max(2, step * .7), zones = [];
+  svg.appendChild(el("line", {x1: x0, x2: x1, y1: Y(0), y2: Y(0), stroke: cssv("--ink-3"), "stroke-width": 1}));
+  K.forEach((k, i) => {
+    const cx = x0 + step * (i + .5);
+    if (q[i] == null) { zones.push({x: cx, y: Y(0), html: `<div class="r"><span>${nf(k)}</span><span>no two-sided quote</span></div>`}); return; }
+    const neg = q[i] < 0, col = neg ? cssv("--down") : cssv("--alt");
+    const yt = Math.min(Y(q[i]), Y(0)), hh = Math.max(1, Math.abs(Y(q[i]) - Y(0)));
+    svg.appendChild(el("rect", {x: cx - bw / 2, y: yt, width: bw, height: hh, fill: col, "fill-opacity": neg ? .9 : .55, stroke: col, "stroke-width": 1}));
+    zones.push({x: cx, y: yt, html:
+      `<div class="r"><span>K</span><span class="n">${nf(k)}</span></div>
+       <div class="r"><span>q̂ (calls)</span><span class="n">${c.density_call[i] == null ? "—" : c.density_call[i].toExponential(2)}</span></div>
+       <div class="r"><span>q̂ (puts)</span><span class="n">${c.density_put[i] == null ? "—" : c.density_put[i].toExponential(2)}</span></div>
+       <div class="r"><span>butterfly</span><span class="n ${neg ? "dn" : ""}">${(q[i] * c.DF * c.step * c.step).toFixed(2)} pts</span></div>`});
+  });
+  if (c.spot) { const sx = x0 + (x1 - x0) * (c.spot - K[0] + c.step / 2) / (K[K.length - 1] - K[0] + c.step);
+    svg.appendChild(el("line", {x1: sx, x2: sx, y1: y0, y2: y1, stroke: cssv("--ink-3"), "stroke-width": 1, "stroke-dasharray": "4 3"})); }
+  [0, Math.floor(K.length / 2), K.length - 1].forEach((i, j) => xlab(svg, x0 + step * (i + .5), H - 6, nf(K[i]), j === 0 ? "start" : j === 2 ? "end" : "middle"));
+  hover(svg, tip, zones);
+  const negs = c.negative_density_at || [];
+  $("denscap").innerHTML = `${c.underlying} ${c.expiry}: q̂(K) per index point from call and put mids averaged, `
+    + `D = ${c.DF.toFixed(5)}, h = ${nf(c.step)}. Mass over the grid ∫q̂ dK = <b>${c.mass == null ? "—" : c.mass.toFixed(3)}</b> `
+    + `(the tails beyond ±${Math.floor(K.length / 2)} strikes carry the rest). `
+    + (negs.length ? `<span class="viol">Negative density at ${negs.map(k => nf(k)).join(", ")} — a butterfly below zero on mids.</span>`
+                   : `No negative density: the chain is convex on mids.`);
+}
+function cdfChart(c) {
+  const svg = $("cdf"), tip = $("cdftip"), H = 200, w = frame(svg, H);
+  if (!c) return none(svg, w, H, "No chain quoting yet");
+  const L = 58, R = 8, T = 12, B = 22, x0 = L, x1 = w - R, y0 = T, y1 = H - B;
+  const K = c.strikes, Q = c.cdf_mid;
+  if (!Q.some(v => v != null)) return none(svg, w, H, "Not enough two-sided call quotes");
+  const lo = -0.05, hi = 1.05, Y = v => y1 - (y1 - y0) * (v - lo) / (hi - lo);
+  grid(svg, x0, x1, y0, y1, 4, v => v.toFixed(2), lo, hi);
+  const X = k => x0 + (x1 - x0) * (k - K[0]) / (K[K.length - 1] - K[0]);
+  let d = "", prev = null; const zones = [];
+  Q.forEach((v, i) => {
+    if (v == null) { prev = null; return; }
+    const km = (K[i] + K[i + 1]) / 2, x = X(km), y = Y(Math.max(-0.05, Math.min(1.05, v)));
+    d += prev == null ? `M${x},${y}` : `L${x},${Y(prev)}L${x},${y}`;
+    const bad = prev != null && v < prev - 1e-9 || v < -1e-9 || v > 1 + 1e-9;
+    if (bad) svg.appendChild(el("circle", {cx: x, cy: y, r: 3.5, fill: cssv("--down")}));
+    zones.push({x, y, html: `<div class="r"><span>K</span><span class="n">${nf(km, 0)}</span></div>
+      <div class="r"><span>Q̂</span><span class="n ${bad ? "dn" : ""}">${v.toFixed(4)}</span></div>
+      <div class="r"><span>call spread / D h</span><span class="n">${c.call_spread_ratio[i] == null ? "—" : c.call_spread_ratio[i].toFixed(4)}</span></div>`});
+    prev = v;
+  });
+  svg.appendChild(el("path", {d, fill: "none", stroke: cssv("--alt"), "stroke-width": 1.8}));
+  if (c.spot) svg.appendChild(el("line", {x1: X(c.spot), x2: X(c.spot), y1: y0, y2: y1, stroke: cssv("--ink-3"), "stroke-width": 1, "stroke-dasharray": "4 3"}));
+  [0, Math.floor(K.length / 2), K.length - 1].forEach((i, j) => xlab(svg, X(K[i]), H - 6, nf(K[i]), j === 0 ? "start" : j === 2 ? "end" : "middle"));
+  hover(svg, tip, zones);
+}
+function renderMath(m) {
+  if (!m) return;
+  const cs = mathChains(m);
+  const c = pickChain(m);
+  $("mstake").textContent = rs(m.stake, 0);
+  $("mexps").innerHTML = cs.map(x => `<div class="day ${chainKey(x) === MEXP ? "on" : ""}" data-k="${chainKey(x)}">${x.underlying} ${x.expiry} <span class="dv">${x.T_days.toFixed(1)}d</span></div>`).join("");
+  document.querySelectorAll("#mexps .day").forEach(e => e.onclick = () => { MEXP = e.dataset.k; SIG.math = null; renderMath(MATH); });
+  densityChart(c); cdfChart(c);
+  $("mrate").innerHTML = rowsTable(
+    `<th class="l">Chain</th><th>T (days)</th><th>r̂ box-implied</th><th>D(T) = e<sup>−r̂T</sup></th><th>median B / D(K₂−K₁)</th><th>∫ q̂ dK on grid</th><th class="l">Convexity</th>`,
+    cs.map(x => `<tr class="${chainKey(x) === MEXP ? "hl" : ""}"><td class="l">${x.underlying} ${x.expiry}</td>
+      <td class="n">${x.T_days.toFixed(2)}</td><td class="n">${pct(x.rate)}</td><td class="n">${x.DF.toFixed(6)}</td>
+      <td class="n">${x.box_ratio_median == null ? "—" : x.box_ratio_median.toFixed(5)}</td>
+      <td class="n">${x.mass == null ? "—" : x.mass.toFixed(3)}</td>
+      <td class="l">${x.negative_density_at.length ? `<span class="viol">q̂ &lt; 0 at ${x.negative_density_at.length} strike${x.negative_density_at.length > 1 ? "s" : ""}</span>` : "convex"}</td></tr>`).join("")
+    || `<tr><td class="l sm" colspan="7">Waiting for quotes.</td></tr>`);
+  $("mbound").innerHTML = rowsTable(
+    `<th class="l">Chain</th><th>min spread / D h</th><th>max spread / D h</th><th class="l">Bound (5)</th>`,
+    cs.map(x => { const [a, b] = x.spread_ratio_range; const bad = a != null && (a < -1e-6 || b > 1 + 1e-6);
+      return `<tr><td class="l">${x.underlying} ${x.expiry}</td><td class="n ${a != null && a < -1e-6 ? "dn" : ""}">${a == null ? "—" : a.toFixed(4)}</td>
+      <td class="n ${b != null && b > 1 + 1e-6 ? "dn" : ""}">${b == null ? "—" : b.toFixed(4)}</td>
+      <td class="l">${a == null ? "—" : bad ? `<span class="viol">violated on mids</span>` : "0 ≤ ratio ≤ 1 holds"}</td></tr>`; }).join("")
+    || `<tr><td class="l sm" colspan="4">Waiting for quotes.</td></tr>`);
+  const withF = cs.filter(x => x.parity && x.parity.F_hat != null);
+  $("mpar").innerHTML = rowsTable(
+    `<th class="l">Chain</th><th>Spot S</th><th>F̂ from parity</th><th>Future bid / ask</th><th>F̂ − mid</th><th>ln(F̂/S)/T</th>`,
+    withF.map(x => { const p = x.parity; const hasF = p.fut_bid > 0 && p.fut_ask > 0;
+      return `<tr><td class="l">${x.underlying} ${x.expiry}</td><td class="n">${nf(x.spot, 2)}</td><td class="n">${nf(p.F_hat, 2)}</td>
+      <td class="n">${hasF ? nf(p.fut_bid, 2) + " / " + nf(p.fut_ask, 2) : "<span class='sm'>no matched future</span>"}</td>
+      <td class="n ${hasF && Math.abs(p.deviation_pts) > 5 ? "dn" : ""}">${hasF ? (p.deviation_pts >= 0 ? "+" : "") + nf(p.deviation_pts, 2) : "—"}</td>
+      <td class="n">${pct(p.basis_rate)}</td></tr>`; }).join("")
+    || `<tr><td class="l sm" colspan="6">Waiting for quotes.</td></tr>`);
+  $("mband").innerHTML = rowsTable(
+    `<th class="l">Chain</th><th>S · lot</th><th>tenor used</th><th>${m.band[0]}% p.a. needs</th><th>in points</th><th>${m.band[1]}% p.a. cap</th><th>in points</th>`,
+    cs.map(x => { const b = x.band; return `<tr><td class="l">${x.underlying} ${x.expiry}</td><td class="n">${rs(b.contract_value, 0)}</td>
+      <td class="n">${b.tenor_days_used.toFixed(2)}d${x.T_days < m.min_tenor_days ? " <span class='sm'>(floored)</span>" : ""}</td>
+      <td class="n">${rs(b.need_inr[0], 0)}</td><td class="n">${b.need_pts[0].toFixed(2)}</td>
+      <td class="n">${rs(b.need_inr[1], 0)}</td><td class="n">${b.need_pts[1].toFixed(2)}</td></tr>`; }).join("")
+    || `<tr><td class="l sm" colspan="7">Waiting for quotes.</td></tr>`);
+  const curves = (m.curves || []).filter(k => !SEL || k.underlying === SEL);
+  $("mcurve").innerHTML = curves.map(k => `<h3 style="margin-top:14px">${k.underlying} <span class="sm" style="font-weight:400">S = ${nf(k.spot, 2)}, reference r = ${pct(k.ref_rate)}</span></h3>
+    <div class="scroll"><table class="wt">${rowsTable(
+      `<th class="l">Future</th><th>T (days)</th><th>bid / ask</th><th>mid F</th><th>S e<sup>rT</sup> at ref</th><th>carry ln(F/S)/T</th><th>box-implied r̂</th>`,
+      k.futures.map(f => `<tr><td class="l">${f.symbol}</td><td class="n">${f.T_days.toFixed(1)}</td>
+        <td class="n">${f.bid > 0 ? nf(f.bid, 2) + " / " + nf(f.ask, 2) : "—"}</td><td class="n">${f.mid == null ? "—" : nf(f.mid, 2)}</td>
+        <td class="n">${f.fair == null ? "—" : nf(f.fair, 2)}</td><td class="n">${pct(f.carry)}</td><td class="n">${pct(f.box_rate)}</td></tr>`).join("")
+      || `<tr><td class="l sm" colspan="7">No futures quoting.</td></tr>`)}</table></div>`
+    + (k.pairs.length ? `<div class="scroll"><table class="wt">${rowsTable(
+      `<th class="l">Calendar</th><th>ΔT (days)</th><th>F₂ − F₁</th><th>fair F₁(e<sup>rΔT</sup>−1)</th><th>forward carry r₁,₂</th><th>r used</th><th>r₁,₂ − r</th><th>edge pts</th><th>₹ / lot</th><th>% of contract</th><th class="l">rich side</th>`,
+      k.pairs.map(p => `<tr><td class="l">${p.near.slice(0, 5)} → ${p.far.slice(0, 5)}</td><td class="n">${p.dT_days.toFixed(1)}</td>
+        <td class="n">${nf(p.actual_spread, 2)}</td><td class="n">${nf(p.fair_spread, 2)}</td><td class="n">${pct(p.forward_carry)}</td>
+        <td class="n">${pct(p.ref_rate)}</td><td class="n ${Math.abs(p.deviation_pa) >= 0.02 ? "dn" : ""}">${(p.deviation_pa >= 0 ? "+" : "") + pct(p.deviation_pa)}</td>
+        <td class="n">${(p.edge_pts >= 0 ? "+" : "") + nf(p.edge_pts, 2)}</td><td class="n">${rs(p.edge_inr_per_lot, 0)}</td>
+        <td class="n">${(p.edge_pct_contract >= 0 ? "+" : "") + p.edge_pct_contract.toFixed(3)}%</td><td class="l">${p.rich}</td></tr>`).join(""))}</table></div>` : "")).join("")
+    || `<p class="note">No futures curve yet.</p>`;
+}
+async function loadMath() {
+  try { MATH = await (await fetch("/api/math", {cache: "no-store"})).json(); renderMath(MATH); } catch (e) {}
+}
+
+async function loadSlow() {
+  try { HIST = await (await fetch("/api/history", {cache: "no-store"})).json(); } catch (e) {}
+  try { CND = await (await fetch("/api/candles", {cache: "no-store"})).json(); } catch (e) {}
+}
+async function poll() {
+  try {
+    const d = await (await fetch("/api/state", {cache: "no-store"})).json();
+    if (d.error) throw new Error(d.error);
+    $("mode").textContent = d.mode + " trading";
+    $("mode").className = "chipx " + (d.mode === "live" ? "off" : "on");
+    $("phase").textContent = "market " + d.phase;
+    $("phase").className = "chipx";
+    $("clock").textContent = d.now + " IST";
+    $("dot").className = "dot" + (d.connected ? "" : " off");
+    $("conn").textContent = d.connected ? "feed live" : "feed down";
+    renderLead(d); renderIdx(d); renderBars(d); renderEngine(d); renderTotals(d);
+    renderTrades(d); renderChain(d);
+    const base = d.total_capital;
+    if (HIST) {
+      if (changed("eq", JSON.stringify(HIST.equity_curve) + base))
+        equityChart(HIST.equity_curve || [], base);
+      if (changed("dly", JSON.stringify(HIST.days))) dailyChart(HIST.days || []);
+      if (changed("intr", JSON.stringify(HIST.intraday))) intradayChart(HIST.intraday || []);
+    }
+    const cn = SEL || (d.indices.includes("NIFTY") ? "NIFTY" : d.indices[0]);
+    if (changed("cnd", cn + ":" + ((CND[cn] || []).length) + ":" +
+        JSON.stringify((CND[cn] || []).slice(-1)))) candleChart(CND[cn] || [], cn);
+    $("foot").textContent = `Strategies: ${d.strategies.join(", ")}. `
+      + (Object.keys(d.signals).length ? `Signals: ${JSON.stringify(d.signals)}.`
+         : "No signals yet this session.");
+  } catch (e) {
+    $("dot").className = "dot off"; $("conn").textContent = "dashboard offline";
+  }
+}
+let rt; addEventListener("resize", () => { clearTimeout(rt);
+  rt = setTimeout(() => { SIG = {}; poll(); }, 200); });
+(async () => { await loadSlow(); poll(); loadMath(); setInterval(poll, 1000);
+  setInterval(loadSlow, 15000); setInterval(loadMath, 2000); })();
+</script>
+</body>
+</html>

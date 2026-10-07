@@ -1,0 +1,46 @@
+{
+  "underlyings": [
+    {
+      "name": "NIFTY",
+      "spot_token": "99926000",
+      "spot_exchange": "NSE",
+      "spot_exchange_type": 1,
+      "segment": "NFO",
+      "option_exchange_type": 2
+    },
+    {
+      "name": "BANKNIFTY",
+      "spot_token": "99926009",
+      "spot_exchange": "NSE",
+      "spot_exchange_type": 1,
+      "segment": "NFO",
+      "option_exchange_type": 2,
+      "num_expiries": 2
+    },
+    {
+      "name": "SENSEX",
+      "spot_token": "99919000",
+      "spot_exchange": "BSE",
+      "spot_exchange_type": 3,
+      "segment": "BFO",
+      "option_exchange_type": 4
+    }
+  ],
+  "num_strikes_each_side": 10,
+  "min_hours_to_expiry": 1.0,
+  "risk_free_rate": 0.065,
+  "use_implied_rate": true,
+  "implied_rate_floor": 0.02,
+  "implied_rate_cap": 0.15,
+  "scan_interval_ms": 0.0,
+  "trading_mode": "paper",
+  "strategies": [
+    "vertical",
+    "box",
+    "butterfly",
+    "pcp_futures"
+  ],
+  "record_ticks": true,
+  "session_start": "09:15",
+  "session_end": "15:15"
+}

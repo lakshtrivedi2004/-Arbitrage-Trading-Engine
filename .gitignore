@@ -1,0 +1,44 @@
+# ── Credentials. Never commit these. ───────────────────────────────────────
+# .angel.env holds the Angel One API key, client id, PIN, TOTP seed and the
+# Telegram bot token. Anyone holding them can trade the account.
+.angel.env
+.env
+*.env
+!*.env.example
+
+# ── Personal / account data ────────────────────────────────────────────────
+# Executed trades and rejected signals
+journal/
+# Recorded order-book snapshots (hundreds of MB per session)
+data/
+logs/
+research_out/
+live_market_candles.csv
+paper_trades*.csv
+# Tax and identity documents that happen to live in this folder
+*.pdf
+*.PDF
+
+# ── Generated / bulky ──────────────────────────────────────────────────────
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+# Scrip master and candle caches; both re-download on demand
+.cache/
+# Third-party research PDFs, not ours to redistribute
+papers/
+*.tar.gz
+# Measured per session rather than a shared setting
+config/calibration.json
+
+.DS_Store
+.idea/
+.vscode/
+
+# Runtime
+.engine.pid
+.daemon.pid
+
+# personal helper scripts
+bkl.sh

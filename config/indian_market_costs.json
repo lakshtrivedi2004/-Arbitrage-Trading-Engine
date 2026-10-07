@@ -1,0 +1,15 @@
+{
+  "stt_options_sell_rate": 0.00125,
+  "stt_options_exercise_rate": 0.000625,
+  "stt_futures_sell_rate": 0.0002,
+  "nse_options_txn_charge": 0.0005,
+  "nse_futures_txn_charge": 0.00002,
+  "sebi_turnover_charge": 0.000001,
+  "stamp_duty_options_buy": 0.00003,
+  "stamp_duty_futures_buy": 0.00002,
+  "gst_rate": 0.18,
+  "flat_brokerage_per_order": 20.0,
+  "slippage_per_leg_ticks": 1.0,
+  "tick_size": 0.05,
+  "lot_size": 25
+}
